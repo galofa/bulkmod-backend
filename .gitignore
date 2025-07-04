@@ -67,8 +67,6 @@ web_modules/
 
 # dotenv environment variable files
 .env
-.env.*
-!.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -140,3 +138,6 @@ vite.config.ts.timestamp-*
 
 # Downloads folder
 downloads
+
+# Uploads folder
+uploads
