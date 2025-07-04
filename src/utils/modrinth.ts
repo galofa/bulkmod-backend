@@ -13,11 +13,13 @@ function extractSlug(url: string): string | null {
 export async function downloadMod(
     modUrl: string,
     mcVersion: string,
-    modLoader: string
+    modLoader: string,
+    downloadPath: string = "downloads"
 ): Promise<{ url: string; success: boolean; message: string; fileName?: string }> {
     console.log("[modrinth] Starting downloadMod");
     const slug = extractSlug(modUrl);
     console.log("[modrinth] Extracted slug:", slug);
+
     if (!slug) {
         console.log("[modrinth] Invalid slug, exiting");
         return { url: modUrl, success: false, message: "Invalid Modrinth URL" };
@@ -42,7 +44,7 @@ export async function downloadMod(
             return {
                 url: modUrl,
                 success: false,
-                message: `No compatible version for Minecraft ${mcVersion} with loader ${modLoader}`
+                message: `No match for ${mcVersion} (${modLoader})`
             };
         }
 
@@ -54,7 +56,12 @@ export async function downloadMod(
 
         console.log("[modrinth] Downloading file:", fileName, "from", downloadUrl);
 
-        const filePath = path.join(__dirname, "../../downloads", fileName);
+        // ✅ Create the download directory
+        const absoluteDownloadPath = path.join(__dirname, "../../", downloadPath);
+        await fs.mkdir(absoluteDownloadPath, { recursive: true });
+
+        const filePath = path.join(absoluteDownloadPath, fileName);
+
         const response = await axios.get(downloadUrl, { responseType: "stream" });
         const writer = createWriteStream(filePath);
 
