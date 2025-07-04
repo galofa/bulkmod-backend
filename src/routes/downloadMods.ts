@@ -4,8 +4,6 @@ import fs from "fs/promises";
 import path from "path";
 import detectSource from "../utils/detectSource";
 import * as modrinth from "../utils/modrinth";
-import * as curseforge from "../utils/curseforge";
-import * as github from "../utils/github";
 
 const router = express.Router();
 
@@ -29,6 +27,7 @@ router.post("/", upload.single("modsFile"), async (req: Request, res: Response) 
     try {
         const mcVersion = req.body.mcVersion as string;
         const modLoader = req.body.modLoader as string;
+        const downloadPath = req.body.downloadPath || "downloads"; // fallback
 
         if (!mcVersion || !modLoader) {
             return res.status(400).json({ error: "Missing mcVersion or modLoader" });
@@ -41,9 +40,7 @@ router.post("/", upload.single("modsFile"), async (req: Request, res: Response) 
         const filePath = req.file.path;
         const text = await fs.readFile(filePath, "utf-8");
 
-        // Each line = mod URL
         const modUrls = text.split(/\r?\n/).filter(Boolean);
-
         const results: DownloadResult[] = [];
 
         for (const url of modUrls) {
@@ -57,19 +54,20 @@ router.post("/", upload.single("modsFile"), async (req: Request, res: Response) 
             try {
                 switch (source) {
                     case "modrinth":
-                        result = await modrinth.downloadMod(url, mcVersion, modLoader);
-                        break;
-                    case "curseforge":
-                        result = await curseforge.downloadMod(url, mcVersion, modLoader);
-                        break;
-                    case "github":
-                        result = await github.downloadMod(url, mcVersion, modLoader);
+                        result = await modrinth.downloadMod(url, mcVersion, modLoader, downloadPath);
                         break;
                     case "custom":
                         result = {
                             url,
                             success: false,
                             message: "Custom source handling not implemented"
+                        };
+                        break;
+                    default:
+                        result = {
+                            url,
+                            success: false,
+                            message: "Unsupported source"
                         };
                         break;
                 }
@@ -84,11 +82,10 @@ router.post("/", upload.single("modsFile"), async (req: Request, res: Response) 
             results.push(result);
         }
 
-        // Cleanup upload file
+        // Clean up uploaded .txt
         await fs.unlink(filePath);
 
         res.json({ results });
-
     } catch (err: any) {
         res.status(500).json({ error: err.message || "Internal server error" });
     }
