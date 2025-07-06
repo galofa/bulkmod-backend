@@ -15,24 +15,21 @@ export async function downloadMod(
     mcVersion: string,
     modLoader: string,
     downloadPath: string = "downloads"
-): Promise<{ url: string; success: boolean; message: string; fileName?: string }> {
-    //console.log("[modrinth] Starting downloadMod");
+): Promise<{
+    url: string;
+    success: boolean;
+    message: string;
+    fileName?: string;
+}> {
     const slug = extractSlug(modUrl);
-    //console.log("[modrinth] Extracted slug:", slug);
 
     if (!slug) {
-        //console.log("[modrinth] Invalid slug, exiting");
         return { url: modUrl, success: false, message: "Invalid Modrinth URL" };
     }
 
     try {
-        //console.log("[modrinth] Fetching project info");
         const { data: project } = await axios.get(`${API_BASE}/project/${slug}`);
-        //console.log("[modrinth] Project ID:", project.id);
-
-        //console.log("[modrinth] Fetching project versions");
         const { data: versions } = await axios.get(`${API_BASE}/project/${project.id}/version`);
-        //console.log("[modrinth] Number of versions found:", versions.length);
 
         const compatible = versions.find((version: any) =>
             version.game_versions.includes(mcVersion) &&
@@ -40,7 +37,6 @@ export async function downloadMod(
         );
 
         if (!compatible) {
-            console.log("[modrinth] No compatible version found");
             return {
                 url: modUrl,
                 success: false,
@@ -48,18 +44,20 @@ export async function downloadMod(
             };
         }
 
-        console.log("[modrinth] Compatible version found:", compatible.version_number);
+        const file = compatible.files?.[0];
+        if (!file) {
+            return {
+                url: modUrl,
+                success: false,
+                message: "No file found for compatible version"
+            };
+        }
 
-        const file = compatible.files[0];
         const downloadUrl = file.url;
         const fileName = file.filename;
-
-        //console.log("[modrinth] Downloading file:", fileName, "from", downloadUrl);
-
-        // ✅ Usa la ruta recibida como ya resuelta
-        await fs.mkdir(downloadPath, { recursive: true });
-
         const filePath = path.join(downloadPath, fileName);
+
+        await fs.mkdir(downloadPath, { recursive: true });
 
         const response = await axios.get(downloadUrl, { responseType: "stream" });
         const writer = createWriteStream(filePath);
@@ -67,17 +65,9 @@ export async function downloadMod(
         response.data.pipe(writer);
 
         await new Promise<void>((resolve, reject) => {
-            writer.on("finish", () => {
-                console.log("[modrinth] Download finished");
-                resolve();
-            });
-            writer.on("error", (err) => {
-                console.error("[modrinth] Download error", err);
-                reject(err);
-            });
+            writer.on("finish", resolve);
+            writer.on("error", reject);
         });
-
-        //console.log("[modrinth] File saved to:", filePath);
 
         return {
             url: modUrl,
@@ -86,7 +76,6 @@ export async function downloadMod(
             fileName
         };
     } catch (error: any) {
-        console.error("[modrinth] Caught error:", error.message || error);
         return {
             url: modUrl,
             success: false,

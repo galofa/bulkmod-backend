@@ -20,11 +20,11 @@ interface DownloadResult {
 const jobs = new Map<string, DownloadResult[]>();
 const clientsByJobId = new Map<string, Response[]>();
 
-// Corrijo baseDownloadsPath para que no termine con slash
-const baseDownloadsPath = path.resolve(__dirname, "../../downloads").replace(/[\\/]+$/, "");
+const baseDownloadsPath = path.resolve(__dirname, "../../downloads");
+const uploadPath = path.resolve(__dirname, "../../uploads");
 
 const upload = multer({
-    dest: path.join(__dirname, "../../uploads"),
+    dest: uploadPath,
     fileFilter: (_req, file, cb) => {
         if (file.mimetype === "text/plain") cb(null, true);
         else cb(new Error("Only .txt files are allowed"));
@@ -70,14 +70,8 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
 
         jobs.set(jobId, []);
 
-        // Start async download + zip process
         (async () => {
-            // Armo ruta del folder de trabajo usando path.resolve para evitar problemas
             const jobFolder = path.resolve(baseDownloadsPath, `job_${jobId}`);
-
-            console.log("baseDownloadsPath:", baseDownloadsPath);
-            console.log("jobFolder:", jobFolder);
-
             await fs.mkdir(jobFolder, { recursive: true });
 
             for (const url of modUrls) {
@@ -89,16 +83,12 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
 
                 try {
                     const source = detectSource(url);
-                    switch (source) {
-                        case "modrinth":
-                            result = await modrinth.downloadMod(url, mcVersion, modLoader, jobFolder);
-                            break;
-                        case "custom":
-                            result.message = "Custom source not implemented";
-                            break;
-                        default:
-                            result.message = "Unsupported source";
-                            break;
+                    if (source === "modrinth") {
+                        result = await modrinth.downloadMod(url, mcVersion, modLoader, jobFolder);
+                    } else if (source === "custom") {
+                        result.message = "Custom source not implemented";
+                    } else {
+                        result.message = "Unsupported source";
                     }
                 } catch (err: any) {
                     result = {
@@ -118,8 +108,8 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
                 await new Promise((r) => setTimeout(r, 300));
             }
 
-            // ZIP all downloaded .jar files
-            const zipName = `mods.zip`;
+            // Zip all .jar files
+            const zipName = `mods_${jobId}.zip`;
             const zipPath = path.join(baseDownloadsPath, zipName);
             const output = fsSync.createWriteStream(zipPath);
             const archive = archiver("zip", { zlib: { level: 9 } });
@@ -128,24 +118,32 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
             archive.directory(jobFolder, false);
             await archive.finalize();
 
-            // Clean up mod files after zipping
+            // Cleanup downloaded mods
             await fs.rm(jobFolder, { recursive: true, force: true });
 
-            // Notify all clients
+            // Notify frontend clients
             const clients = clientsByJobId.get(jobId) || [];
+            const zipUrl = `${process.env.BASE_URL || "http://localhost:4000"}/downloads/${zipName}`;
+
             for (const res of clients) {
-                res.write(`event: done\ndata: ${JSON.stringify({ zipUrl: `http://localhost:4000/downloads/${zipName}` })}\n\n`);
+                res.write(`event: done\ndata: ${JSON.stringify({ zipUrl })}\n\n`);
                 res.end();
             }
 
             clientsByJobId.delete(jobId);
 
+            // Optional: Clean everything inside /downloads (except zip)
             try {
-                await fs.rm(baseDownloadsPath, { recursive: true, force: true });
-                await fs.mkdir(baseDownloadsPath, { recursive: true }); // vuelve a crearla vacía
-                console.log("✅ Carpeta 'downloads' limpiada al finalizar");
+                const files = await fs.readdir(baseDownloadsPath);
+                for (const file of files) {
+                    if (!file.endsWith(".zip")) continue;
+                    const filePath = path.join(baseDownloadsPath, file);
+                    const stats = await fs.stat(filePath);
+                    const ageHours = (Date.now() - stats.mtimeMs) / 1000 / 60 / 60;
+                    if (ageHours > 1) await fs.unlink(filePath); // Clean old zips
+                }
             } catch (e) {
-                console.error("❌ Error al limpiar carpeta 'downloads':", e);
+                console.error("Error cleaning old downloads:", e);
             }
         })();
 
