@@ -16,23 +16,23 @@ export async function downloadMod(
     modLoader: string,
     downloadPath: string = "downloads"
 ): Promise<{ url: string; success: boolean; message: string; fileName?: string }> {
-    console.log("[modrinth] Starting downloadMod");
+    //console.log("[modrinth] Starting downloadMod");
     const slug = extractSlug(modUrl);
-    console.log("[modrinth] Extracted slug:", slug);
+    //console.log("[modrinth] Extracted slug:", slug);
 
     if (!slug) {
-        console.log("[modrinth] Invalid slug, exiting");
+        //console.log("[modrinth] Invalid slug, exiting");
         return { url: modUrl, success: false, message: "Invalid Modrinth URL" };
     }
 
     try {
-        console.log("[modrinth] Fetching project info");
+        //console.log("[modrinth] Fetching project info");
         const { data: project } = await axios.get(`${API_BASE}/project/${slug}`);
-        console.log("[modrinth] Project ID:", project.id);
+        //console.log("[modrinth] Project ID:", project.id);
 
-        console.log("[modrinth] Fetching project versions");
+        //console.log("[modrinth] Fetching project versions");
         const { data: versions } = await axios.get(`${API_BASE}/project/${project.id}/version`);
-        console.log("[modrinth] Number of versions found:", versions.length);
+        //console.log("[modrinth] Number of versions found:", versions.length);
 
         const compatible = versions.find((version: any) =>
             version.game_versions.includes(mcVersion) &&
@@ -54,13 +54,12 @@ export async function downloadMod(
         const downloadUrl = file.url;
         const fileName = file.filename;
 
-        console.log("[modrinth] Downloading file:", fileName, "from", downloadUrl);
+        //console.log("[modrinth] Downloading file:", fileName, "from", downloadUrl);
 
-        // ✅ Create the download directory
-        const absoluteDownloadPath = path.join(__dirname, "../../", downloadPath);
-        await fs.mkdir(absoluteDownloadPath, { recursive: true });
+        // ✅ Usa la ruta recibida como ya resuelta
+        await fs.mkdir(downloadPath, { recursive: true });
 
-        const filePath = path.join(absoluteDownloadPath, fileName);
+        const filePath = path.join(downloadPath, fileName);
 
         const response = await axios.get(downloadUrl, { responseType: "stream" });
         const writer = createWriteStream(filePath);
@@ -78,7 +77,7 @@ export async function downloadMod(
             });
         });
 
-        console.log("[modrinth] File saved to:", filePath);
+        //console.log("[modrinth] File saved to:", filePath);
 
         return {
             url: modUrl,
