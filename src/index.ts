@@ -9,7 +9,7 @@ const PORT = 4000;
 app.use(cors());
 app.use(express.json());
 
-app.use("/api/download-mods", downloadModsRouter);
+app.use("/api", downloadModsRouter);
 
 // Serve downloaded files statically
 app.use("/downloads", express.static(path.join(__dirname, "../downloads")));
