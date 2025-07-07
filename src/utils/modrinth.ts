@@ -5,8 +5,12 @@ import { createWriteStream } from "fs";
 
 const API_BASE = "https://api.modrinth.com/v2";
 
+const types = ['mod', 'plugin', 'resourcepack', 'shader', 'datapack', 'modpack'];
+const typePattern = types.join('|');
+const regex = new RegExp(`modrinth\\.com\\/(${typePattern})\\/([^/]+)`);
+
 function extractSlug(url: string): string | null {
-    const match = url.match(/modrinth\.com\/mod\/([^/]+)/);
+    const match = url.match(regex);
     return match ? match[1] : null;
 }
 
