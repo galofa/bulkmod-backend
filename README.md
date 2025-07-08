@@ -128,7 +128,8 @@ Files older than 2 minutes are automatically deleted from:
 ## ✨ Notes
 
 - Only Modrinth links are supported for now (more sources planned for future updates)
-- Your frontend should listen to the SSE stream before starting upload to ensure it captures all events.
+- Your frontend should listen to the SSE stream before starting upload to ensure it captures all events
+- You need to be running both frontend and backend in order to have the application work
 
 ---
 
