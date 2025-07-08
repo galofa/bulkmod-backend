@@ -147,7 +147,7 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
             }
 
             // Zip all .jar files
-            const zipName = `mods_${jobId}.zip`;
+            const zipName = `mods.zip`;
             const zipPath = path.join(baseDownloadsPath, zipName);
             const output = fsSync.createWriteStream(zipPath);
             const archive = archiver("zip", { zlib: { level: 9 } });
