@@ -146,26 +146,42 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
                 await new Promise((r) => setTimeout(r, 300));
             }
 
-            // Zip all .jar files
-            const zipName = `mods.zip`;
-            const zipPath = path.join(baseDownloadsPath, zipName);
-            const output = fsSync.createWriteStream(zipPath);
-            const archive = archiver("zip", { zlib: { level: 9 } });
+            // Checks if there are any successful downloads
+            const jobResults = jobs.get(jobId) || [];
+            const anySuccess = jobResults.some(r => r.success);
 
-            archive.pipe(output);
-            archive.directory(jobFolder, false);
-            await archive.finalize();
+            if (anySuccess) {
+                // Zip all .jar files
+                const zipName = `mods.zip`;
+                const zipPath = path.join(baseDownloadsPath, zipName);
+                const output = fsSync.createWriteStream(zipPath);
+                const archive = archiver("zip", { zlib: { level: 9 } });
 
-            // Cleanup downloaded mods
-            await fs.rm(jobFolder, { recursive: true, force: true });
+                archive.pipe(output);
+                archive.directory(jobFolder, false);
+                await archive.finalize();
 
-            // Notify clients
-            const clients = clientsByJobId.get(jobId) || [];
-            const zipUrl = `${process.env.BASE_URL || "http://localhost:4000"}/downloads/${zipName}`;
+                // Cleanup downloaded mods
+                await fs.rm(jobFolder, { recursive: true, force: true });
 
-            for (const res of clients) {
-                res.write(`event: done\ndata: ${JSON.stringify({ zipUrl })}\n\n`);
-                res.end();
+                // Notify clients
+                const clients = clientsByJobId.get(jobId) || [];
+                const zipUrl = `${process.env.BASE_URL || "http://localhost:4000"}/downloads/${zipName}`;
+
+                for (const res of clients) {
+                    res.write(`event: done\ndata: ${JSON.stringify({ zipUrl })}\n\n`);
+                    res.end();
+                }
+            } else {
+                // No mods downloaded successfully
+                await fs.rm(jobFolder, { recursive: true, force: true });
+
+                // Notify clients with "no downloads" event and end
+                const clients = clientsByJobId.get(jobId) || [];
+                for (const res of clients) {
+                    res.write(`event: done\ndata: ${JSON.stringify({ message: "No mods were downloaded successfully." })}\n\n`);
+                    res.end();
+                }
             }
 
             clientsByJobId.delete(jobId);
