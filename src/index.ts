@@ -7,17 +7,23 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
+// Express app
 const app = express();
+
+// Port
 const PORT = process.env.PORT || 4000;
+
+// Client origin
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "*";
 
-// Enable CORS for frontend origin
+// Enable CORS
 app.use(cors({
     origin: CLIENT_ORIGIN,
     methods: ["GET", "POST"],
     credentials: true
 }));
 
+// JSON middleware
 app.use(express.json());
 
 // API routes
@@ -25,8 +31,6 @@ app.use("/api", downloadModsRouter);
 
 // Serve mods.zip files
 app.use("/downloads", express.static(path.join(__dirname, "../downloads")));
-
-// ✅ DO NOT try to serve frontend here (your frontend is on Vercel)
 
 // Start server
 app.listen(PORT, () => {

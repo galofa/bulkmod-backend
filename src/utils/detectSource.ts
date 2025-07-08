@@ -1,4 +1,4 @@
-export default function detectSource(url: string): "modrinth" | "custom" {
+export default function detectSource(url: string): "modrinth" | "invalid" {
     if (url.includes("modrinth.com")) return "modrinth";
-    return "custom";
+    return "invalid";
 }
