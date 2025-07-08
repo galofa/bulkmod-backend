@@ -5,13 +5,14 @@ import { createWriteStream } from "fs";
 
 const API_BASE = "https://api.modrinth.com/v2";
 
+// Fix: match both type and slug, extract only slug
 const types = ['mod', 'plugin', 'resourcepack', 'shader', 'datapack', 'modpack'];
 const typePattern = types.join('|');
-const regex = new RegExp(`modrinth\\.com\\/(${typePattern})\\/([^/]+)`);
+const regex = new RegExp(`modrinth\\.com\\/(${typePattern})\\/([^/]+)`, "i");
 
 function extractSlug(url: string): string | null {
     const match = url.match(regex);
-    return match ? match[1] : null;
+    return match ? match[2] : null; // match[2] is the slug
 }
 
 export async function downloadMod(

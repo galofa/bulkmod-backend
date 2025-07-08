@@ -47,6 +47,9 @@ router.get("/progress/:jobId", (req: Request, res: Response) => {
 
     clientsByJobId.get(jobId)!.push(res);
 
+    // Optional: tell backend connection is ready
+    res.write("event: ready\ndata: connected\n\n");
+
     req.on("close", () => {
         const remaining = (clientsByJobId.get(jobId) || []).filter(r => r !== res);
         clientsByJobId.set(jobId, remaining);
@@ -74,6 +77,19 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
             const jobFolder = path.resolve(baseDownloadsPath, `job_${jobId}`);
             await fs.mkdir(jobFolder, { recursive: true });
 
+            const waitForClient = async () => {
+                const maxWaitMs = 5000;
+                const intervalMs = 100;
+                let waited = 0;
+                while (!clientsByJobId.has(jobId) || clientsByJobId.get(jobId)!.length === 0) {
+                    await new Promise(r => setTimeout(r, intervalMs));
+                    waited += intervalMs;
+                    if (waited >= maxWaitMs) break;
+                }
+            };
+
+            await waitForClient();
+
             for (const url of modUrls) {
                 let result: DownloadResult = {
                     url,
@@ -91,6 +107,7 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
                         result.message = "Unsupported source";
                     }
                 } catch (err: any) {
+                    console.log(err);
                     result = {
                         url,
                         success: false,
@@ -98,6 +115,7 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
                     };
                 }
 
+                console.log(result);
                 jobs.get(jobId)!.push(result);
 
                 const clients = clientsByJobId.get(jobId) || [];
@@ -118,10 +136,8 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
             archive.directory(jobFolder, false);
             await archive.finalize();
 
-            // Cleanup downloaded mods
             await fs.rm(jobFolder, { recursive: true, force: true });
 
-            // Notify frontend clients
             const clients = clientsByJobId.get(jobId) || [];
             const zipUrl = `${process.env.BASE_URL || "http://localhost:4000"}/downloads/${zipName}`;
 
@@ -132,7 +148,6 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
 
             clientsByJobId.delete(jobId);
 
-            // Optional: Clean everything inside /downloads (except zip)
             try {
                 const files = await fs.readdir(baseDownloadsPath);
                 for (const file of files) {
@@ -140,7 +155,7 @@ router.post("/upload-mods", upload.single("modsFile"), async (req: Request, res:
                     const filePath = path.join(baseDownloadsPath, file);
                     const stats = await fs.stat(filePath);
                     const ageHours = (Date.now() - stats.mtimeMs) / 1000 / 60 / 60;
-                    if (ageHours > 1) await fs.unlink(filePath); // Clean old zips
+                    if (ageHours > 1) await fs.unlink(filePath);
                 }
             } catch (e) {
                 console.error("Error cleaning old downloads:", e);
