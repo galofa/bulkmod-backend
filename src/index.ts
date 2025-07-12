@@ -3,6 +3,7 @@ import cors from "cors";
 import downloadModsRouter from "./routes/downloadMods";
 import path from "path";
 import dotenv from "dotenv";
+import { errorHandler } from "./middleware/errorHandler";
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +32,9 @@ app.use("/api", downloadModsRouter);
 
 // Serve mods.zip files
 app.use("/downloads", express.static(path.join(__dirname, "../downloads")));
+
+// Error handling middleware
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
