@@ -4,8 +4,6 @@ import bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Starting database seed...');
-
   // Clean up existing data
   await prisma.userSession.deleteMany();
   await prisma.user.deleteMany();
@@ -28,9 +26,6 @@ async function main() {
       passwordHash
     }
   });
-
-  console.log('Created users:', { user1, user2 });
-  console.log('Database seed completed!');
 }
 
 main()
