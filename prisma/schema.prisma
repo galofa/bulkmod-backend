@@ -20,7 +20,7 @@ model User {
   
   // Relations
   sessions UserSession[]
-  playlists Playlist[]
+  modlists ModList[]
   
   @@map("users")
 }
@@ -38,7 +38,7 @@ model UserSession {
   @@map("user_sessions")
 }
 
-model Playlist {
+model ModList {
   id          Int      @id @default(autoincrement())
   name        String   @db.VarChar(100)
   description String?  @db.VarChar(500)
@@ -49,14 +49,14 @@ model Playlist {
   
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mods PlaylistMod[]
+  mods ModListMod[]
   
-  @@map("playlists")
+  @@map("modlists")
 }
 
-model PlaylistMod {
+model ModListMod {
   id          Int      @id @default(autoincrement())
-  playlistId  Int      @map("playlist_id")
+  modListId   Int      @map("modlist_id")
   modSlug     String   @map("mod_slug") @db.VarChar(100)
   modTitle    String   @map("mod_title") @db.VarChar(255)
   modIconUrl  String?  @map("mod_icon_url") @db.VarChar(500)
@@ -64,8 +64,8 @@ model PlaylistMod {
   addedAt     DateTime @default(now()) @map("added_at")
   
   // Relations
-  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  modlist ModList @relation(fields: [modListId], references: [id], onDelete: Cascade)
   
-  @@unique([playlistId, modSlug])
-  @@map("playlist_mods")
+  @@unique([modListId, modSlug])
+  @@map("modlist_mods")
 }
