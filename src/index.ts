@@ -3,7 +3,7 @@ import cors from "cors";
 import downloadModsRouter from "./routes/downloadMods";
 import searchModsRouter from "./routes/searchMods";
 import authRouter from "./routes/auth";
-import playlistRouter from "./routes/playlists";
+import modListRouter from "./routes/modlists";
 import path from "path";
 import dotenv from "dotenv";
 import { errorHandler } from "./middleware/errorHandler";
@@ -55,7 +55,7 @@ testDatabaseConnection();
 app.use("/api/auth", authRouter);
 app.use("/api", downloadModsRouter);
 app.use("/api/search-mods", searchModsRouter);
-app.use("/api/playlists", playlistRouter);
+app.use("/api/modlists", modListRouter);
 
 // Serve mods.zip files
 app.use("/downloads", express.static(path.join(__dirname, "../downloads")));
