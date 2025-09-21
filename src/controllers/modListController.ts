@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ModListService } from '../services/modListService';
 import { authenticateToken } from '../middleware/authMiddleware';
+import axios from 'axios';
 
 const modListService = new ModListService();
 
@@ -216,6 +217,102 @@ export class ModListController {
     } catch (error) {
       console.error('Error fetching mod lists containing mod:', error);
       res.status(500).json({ error: 'Failed to fetch mod lists containing mod' });
+    }
+  }
+
+  // Fetch mod details from Modrinth API
+  async fetchModDetails(req: Request, res: Response) {
+    try {
+      const { modSlug } = req.params;
+
+      if (!modSlug) {
+        return res.status(400).json({ error: 'Mod slug is required' });
+      }
+
+      // Fetch mod details from Modrinth API
+      const response = await axios.get(`https://api.modrinth.com/v2/project/${modSlug}`);
+      const modData = response.data;
+
+      // Extract the necessary information
+      const modDetails = {
+        slug: modData.slug,
+        title: modData.title,
+        author: modData.author,
+        iconUrl: modData.icon_url,
+        description: modData.description,
+        projectType: modData.project_type
+      };
+
+      res.json(modDetails);
+    } catch (error) {
+      console.error('Error fetching mod details:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return res.status(404).json({ error: 'Mod not found' });
+      }
+      res.status(500).json({ error: 'Failed to fetch mod details' });
+    }
+  }
+
+  // Import mod list with API fetching
+  async importModList(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { name, description, modUrls } = req.body;
+
+      if (!name || !modUrls || !Array.isArray(modUrls)) {
+        return res.status(400).json({ error: 'Name and mod URLs are required' });
+      }
+
+      // Create the mod list first
+      const modlist = await modListService.createModList(userId, {
+        name,
+        description: description || 'Imported from file',
+        isPublic: false,
+      });
+
+      // Process each mod URL
+      const modPromises = modUrls.map(async (url: string) => {
+        try {
+          // Extract slug from URL (support both /mod and /plugin)
+          const slugMatch = url.match(/modrinth\.com\/(mod|plugin)\/([^/]+)/);
+          if (!slugMatch) {
+            console.warn(`Invalid URL format: ${url}`);
+            return null;
+          }
+          
+          const slug = slugMatch[2];
+          
+          // Fetch mod details from API
+          const response = await axios.get(`https://api.modrinth.com/v2/project/${slug}`);
+          const modData = response.data;
+
+          // Add mod to the mod list
+          const result = await modListService.addModToModList(modlist.id, userId, {
+            modSlug: slug,
+            modTitle: modData.title,
+            modIconUrl: modData.icon_url,
+            modAuthor: modData.author || 'Unknown Author',
+          });
+          return result;
+        } catch (error) {
+          console.error(`Failed to process mod URL ${url}:`, error);
+          return null;
+        }
+      });
+
+      // Wait for all mods to be processed
+      const results = await Promise.all(modPromises);
+      const successfulMods = results.filter(mod => mod !== null);
+
+      res.status(201).json({
+        modlist,
+        importedMods: successfulMods.length,
+        totalMods: modUrls.length,
+        failedMods: modUrls.length - successfulMods.length
+      });
+    } catch (error) {
+      console.error('Error importing mod list:', error);
+      res.status(500).json({ error: 'Failed to import mod list' });
     }
   }
 }
