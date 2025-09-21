@@ -22,5 +22,7 @@ router.get('/:id/mods/check', modListController.checkModInModList.bind(modListCo
 
 // Utility routes
 router.get('/mods/containing', modListController.getModListsContainingMod.bind(modListController));
+router.get('/mods/details/:modSlug', modListController.fetchModDetails.bind(modListController));
+router.post('/import', modListController.importModList.bind(modListController));
 
 export default router;

@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import { DownloadController } from "../controllers/downloadController";
+import { authenticateToken } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
@@ -22,6 +23,9 @@ router.get("/progress/:jobId", DownloadController.handleProgress);
 
 // Upload mods
 router.post("/upload-mods", upload.single("modsFile"), DownloadController.handleUpload);
+
+// Upload mods from modlist
+router.post("/upload-mods-from-list", authenticateToken, DownloadController.handleUploadFromModList);
 
 // Get results for a job
 router.get("/results/:jobId", DownloadController.handleResults);
