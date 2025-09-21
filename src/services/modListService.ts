@@ -36,6 +36,7 @@ export class ModListService {
       include: {
         mods: {
           orderBy: { addedAt: 'desc' },
+          take: 5, // Only load first 5 mods for preview
         },
         _count: {
           select: { mods: true },
